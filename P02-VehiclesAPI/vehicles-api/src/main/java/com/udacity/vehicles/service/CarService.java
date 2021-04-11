@@ -1,9 +1,16 @@
 package com.udacity.vehicles.service;
 
+import com.udacity.vehicles.client.maps.MapsClient;
+import com.udacity.vehicles.client.prices.PriceClient;
 import com.udacity.vehicles.domain.car.Car;
 import com.udacity.vehicles.domain.car.CarRepository;
+
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 /**
  * Implements the car service create, read, update or delete
@@ -14,13 +21,17 @@ import org.springframework.stereotype.Service;
 public class CarService {
 
     private final CarRepository repository;
+    private final MapsClient maps;
+    private final PriceClient pricing;
 
-    public CarService(CarRepository repository) {
+    public CarService(CarRepository repository, MapsClient maps, PriceClient priging) {
         /**
          * TODO: Add the Maps and Pricing Web Clients you create
          *   in `VehiclesApiApplication` as arguments and set them here.
          */
         this.repository = repository;
+        this.maps = maps;
+        this.pricing = priging;
     }
 
     /**
@@ -42,7 +53,13 @@ public class CarService {
          *   If it does not exist, throw a CarNotFoundException
          *   Remove the below code as part of your implementation.
          */
-        Car car = new Car();
+
+        Car car;
+        if (repository.findAllById(Collections.singletonList(id)).isEmpty()) {
+            throw new CarNotFoundException("Cannot find a car for a given id = " + id + ".");
+        } else {
+            car = repository.getOne(id);
+        }
 
         /**
          * TODO: Use the Pricing Web client you create in `VehiclesApiApplication`
@@ -52,6 +69,7 @@ public class CarService {
          *   the pricing service each time to get the price.
          */
 
+        car.setPrice(pricing.getPrice(id));
 
         /**
          * TODO: Use the Maps Web client you create in `VehiclesApiApplication`
@@ -62,6 +80,7 @@ public class CarService {
          * meaning the Maps service needs to be called each time for the address.
          */
 
+        car.setLocation(maps.getAddress(car.getLocation()));
 
         return car;
     }
@@ -94,11 +113,17 @@ public class CarService {
          *   If it does not exist, throw a CarNotFoundException
          */
 
+        Car car;
+        if (repository.findAllById(Collections.singletonList(id)).isEmpty()) {
+            throw new CarNotFoundException("Cannot find a car for a given id = " + id + ".");
+        } else {
+            car = repository.getOne(id);
+        }
 
         /**
          * TODO: Delete the car from the repository.
          */
 
-
+        repository.delete(car);
     }
 }
