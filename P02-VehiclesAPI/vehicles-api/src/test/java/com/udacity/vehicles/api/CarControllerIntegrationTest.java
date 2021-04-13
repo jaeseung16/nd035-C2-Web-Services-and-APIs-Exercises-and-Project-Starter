@@ -9,12 +9,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.modelmapper.internal.util.Assert;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.json.AutoConfigureJsonTesters;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.json.JacksonTester;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.web.server.LocalServerPort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -23,12 +24,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 @RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
+@AutoConfigureJsonTesters
 public class CarControllerIntegrationTest {
     @LocalServerPort
     private int port;
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private JacksonTester<Car> json;
 
     @Test
     public void postCar() {
@@ -58,6 +63,27 @@ public class CarControllerIntegrationTest {
         Long id = carResponseEntity.getBody().getId();
         ResponseEntity<Car> response =
                 restTemplate.getForEntity("http://localhost:" + port + "/cars/" + id, Car.class);
+
+        assertThat(response.getStatusCode(), equalTo(HttpStatus.OK));
+    }
+
+    @Test
+    public void updateCar() throws Exception {
+        ResponseEntity<Car> carResponseEntity = restTemplate.postForEntity("http://localhost:" + port + "/cars/", getCar(), Car.class);
+        Car car = carResponseEntity.getBody();
+
+        Assert.notNull(car);
+
+        Long id = carResponseEntity.getBody().getId();
+        car.setCondition(Condition.NEW);
+
+        String requestBody = json.write(car).getJson();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
+
+        ResponseEntity<String> response =
+                restTemplate.exchange("http://localhost:" + port + "/cars/{id}", HttpMethod.PUT, entity, String.class, id);
 
         assertThat(response.getStatusCode(), equalTo(HttpStatus.OK));
     }
